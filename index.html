@@ -4,54 +4,186 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vachagan Melikian</title>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Fraunces:ital,opsz,wght,WONK@0,9..144,100..900,1;1,9..144,100..900,1&display=swap" rel="stylesheet">  <link href="styles/style.css" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
   <!-- Favicon links -->
   <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
+  <style>
+    body {
+      font-family: "Figtree", sans-serif;
+      line-height: 1.5;
+      background-color: #ffffff;
+      color: #333333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding-top: 40px;
+    }
+    
+    .square {
+      max-width: 700px;
+      width: 80%;
+      padding: 40px;
+    }
+    
+    .name-section {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 30px;
+    }
+    
+    .profile-pic {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 20px;
+    }
+    
+    .name-text {
+      flex: 1;
+    }
+    
+    .name-container {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .name-column {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .name-part {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin: 0;
+      color: #222222;
+    }
+    
+    .pronunciation-part {
+      font-size: 0.85rem;
+      color: #666;
+      margin: 3px 0 0 3px;
+    }
+    
+    .content-section {
+      margin-top: 20px;
+    }
+    
+    p {
+      margin: 0 0 16px 0;
+      line-height: 1.6;
+      color: #555;
+    }
+    
+    .intro {
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    
+    a {
+      color: #5470b0;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    
+    a:hover {
+      color: #3a4f7a;
+      text-decoration: underline;
+    }
+    
+    /* Links list */
+    .links {
+      list-style-type: none;
+      padding: 0;
+      margin-top: 25px;
+      display: flex;
+      gap: 15px;
+    }
+    
+    .links li {
+      margin: 0;
+    }
+    
+    /* Responsive adjustments */
+    @media (min-width: 1200px) {
+      body {
+        justify-content: flex-start;
+        padding-left: 15%;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .square {
+        padding: 25px;
+        width: 85%;
+      }
+      
+      .name-container {
+        gap: 20px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .name-section {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .profile-pic {
+        margin-right: 0;
+        margin-bottom: 15px;
+      }
+      
+      .name-part {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div class="square fraunces">
-    <h1>vachagan melikian</h1>
-    <p>
-      vahch-ah-gahn <span style="margin-left: 58px;">mel-ee-kyahn</span>
-    </p>
-    
-    <h2>about</h2>
-    <div>
-      <img src="images/profile.jpeg" alt="me">
-    <p>
-      I am currently an undergrad at Rutgers, 
-      where I triple major in Computer Science, Cognitive Science, 
-      and Linguistics, with a double minor in History and Philosophy.
-    </p>
-
-    <p>
-        In software engineering, I am an intern at Twitch (Amazon), 
-        where I work on the Twitch app on Android. 
-        Prior to that, I interned at Fidelity Investments, 
-        where I worked on the Fidelity Health app for iOS.
-    </p>
-      <p>
-       In research, I am a fellow at the Rutgers Center for Cognitive Science, 
-       where I research the intersection of language and cognition in news headlines, 
-    focusing on syntax-semantics interface of active vs passive voice - working with <a href="https://sites.google.com/view/shannonbryant/about" target="_blank">Shannon Bryant</a> and <a href="https://sites.rutgers.edu/kristen-syrett/about/" target="_blank">Kristen Syrett</a>, alongside four undergrads.
-
-    Prior to that, I was a research assistant at the 
-    <a href="https://www.nicolaslab.org/" target="_blank">SHIRE 
-    (Social Human-AI Impressions & Representations) Lab</a>,
-        where I developed computational approaches to identifying
-         intersectional biases in large language models.
-        </p>
-        <p>
-        I am also a developer at <a href="https://www.merit-match.com" target="_blank">MeritMatch</a>, a matchmaking platform that matches K12 schools with education vendors, eliminating cold calls and marketing emails.
-        </p>
+  <div class="square">
+    <div class="name-section">
+      <!-- <img src="images/profile.jpeg" alt="Vachagan Melikian" class="profile-pic"> -->
+      <div class="name-text">
+        <div class="name-container">
+          <div class="name-column">
+            <div class="name-part">vachagan</div>
+            <div class="pronunciation-part">vahch-ah-gahn</div>
+          </div>
+          <div class="name-column">
+            <div class="name-part">melikian</div>
+            <div class="pronunciation-part">mel-ee-kyahn</div>
+          </div>
+        </div>
+      </div>
     </div>
-    <ul>
+    
+    <div class="content-section">
+      <p class="intro">Hi, I'm Vach. I'm a student developer.</p>
+      
+      <p>I am currently an undergrad at Rutgers University, studying Computer Science, Cognitive Science, and Linguistics with minors in History and Philosophy.</p>
+      
+      <p>I am an intern at Twitch (Amazon), where I work on the <a href="https://play.google.com/store/apps/details?id=tv.twitch.android.app&hl=en_US" target="_blank">Twitch app for Android</a>. I am also a part-time developer at <a href="https://www.merit-match.com" target="_blank">MeritMatch</a>. Prior to that, I interned at Fidelity Investments, where I worked on the <a href="https://apps.apple.com/us/app/fidelity-health/id1508025073" target="_blank">Fidelity Health app for iOS</a>.</p>
+      
+      <p>I am also a fellow at the Rutgers Center for Cognitive Science, where I research the intersection of language and cognition in news headlines, focusing on syntax-semantics interface of active vs passive voice - working with <a href="https://sites.google.com/view/shannonbryant/about" target="_blank">Shannon Bryant</a> and <a href="https://sites.rutgers.edu/kristen-syrett/about/" target="_blank">Kristen Syrett</a>, alongside four undergrads.</p> 
+      
+      <p>Prior to that, I was a research assistant at the <a href="https://www.nicolaslab.org/" target="_blank">SHIRE (Social Human-AI Impressions & Representations) Lab</a>, where I developed computational approaches to identifying intersectional biases in large language models.</p>
+      
+      <ul class="links">
         <li><a href="https://www.linkedin.com/in/vachagan-melikian/">linkedin</a></li>
-    </ul>
+        <!-- <li><a href="https://github.com">github</a></li> -->
+      </ul>
+    </div>
   </div>
 </body>
 </html>
