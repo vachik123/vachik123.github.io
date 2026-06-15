@@ -4,191 +4,94 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vachagan Melikian</title>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
-  <!-- Favicon links -->
-  <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&display=swap" rel="stylesheet">
   <style>
+    @font-face {
+      font-family: "Charis SIL";
+      src: url("/fonts/Charis-Regular.woff2") format("woff2");
+      font-weight: 400; font-style: normal; font-display: swap;
+    }
+    :root {
+      --ink: #1c1c1a;
+      --muted: #6b6b66;
+      --bg: #ffffff;
+      --rule: #e7e6e1;
+      --underline: #c9c8c2;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #e9e8e3;
+        --muted: #97958c;
+        --bg: #141413;
+        --rule: #2b2a26;
+        --underline: #47453f;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
     body {
-      font-family: "Figtree", sans-serif;
-      line-height: 1.5;
-      background-color: #ffffff;
-      color: #333333;
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 1.225rem;
+      line-height: 1.62;
+      color: var(--ink);
+      background: var(--bg);
       margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      padding-top: 40px;
+      padding: 88px 24px 120px;
     }
-    
-    .square {
-      max-width: 700px;
-      width: 80%;
-      padding: 40px;
+    .wrap { max-width: 660px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.005em;
+      margin: 0 0 4px;
+      line-height: 1.25;
     }
-    
-    .name-section {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 30px;
+    .pron { font-family: "Charis SIL", "Gentium Plus", "Doulos SIL", Georgia, serif; color: var(--muted); font-style: normal; font-size: 1.05rem; margin: 0 0 32px; }
+    p { margin: 0 0 22px; }
+    a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; text-decoration-color: var(--underline); transition: text-decoration-color .15s ease; }
+    a:hover { text-decoration-color: var(--ink); }
+    .section-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: var(--muted);
+      font-style: normal;
+      margin: 48px 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
     }
-    
-    .profile-pic {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      object-fit: cover;
-      margin-right: 20px;
-    }
-    
-    .name-text {
-      flex: 1;
-    }
-    
-    .name-container {
-      display: flex;
-      gap: 15px;
-    }
-    
-    .name-column {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .name-part {
-      font-size: 2.2rem;
-      font-weight: 700;
-      margin: 0;
-      color: #222222;
-    }
-    
-    .pronunciation-part {
-      font-size: 0.85rem;
-      color: #666;
-      margin: 3px 0 0 3px;
-    }
-    
-    .content-section {
-      margin-top: 20px;
-    }
-    
-    p {
-      margin: 0 0 16px 0;
-      line-height: 1.6;
-      color: #555;
-    }
-    
-    .intro {
-      font-size: 1.15rem;
-      font-weight: 500;
-      color: #333;
-      margin-bottom: 20px;
-    }
-    
-    a {
-      color: #5470b0;
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-    
-    a:hover {
-      color: #3a4f7a;
-      text-decoration: underline;
-    }
-    
-    /* Links list */
-    .links {
-      list-style-type: none;
-      padding: 0;
-      margin-top: 25px;
-      display: flex;
-      gap: 15px;
-    }
-    
-    .links li {
-      margin: 0;
-    }
-    
-    /* Responsive adjustments */
-    @media (min-width: 1200px) {
-      body {
-        justify-content: flex-start;
-        padding-left: 15%;
-      }
-    }
-    
-    @media (max-width: 768px) {
-      .square {
-        padding: 25px;
-        width: 85%;
-      }
-      
-      .name-container {
-        gap: 15px;
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .name-section {
-        flex-direction: column;
-        /* align-items: center; */
-      }
-      
-      .profile-pic {
-        margin-right: 0;
-        margin-bottom: 15px;
-      }
-      
-      .name-part {
-        font-size: 1.8rem;
-      }
+    ul.list { list-style: none; padding: 0; margin: 0; }
+    ul.list li { margin: 0 0 10px; display: flex; justify-content: space-between; gap: 18px; align-items: baseline; }
+    ul.list .meta { color: var(--muted); font-size: 0.95rem; font-style: italic; white-space: nowrap; }
+    .links { list-style: none; padding: 0; margin: 40px 0 0; display: flex; flex-wrap: wrap; gap: 22px; }
+    .links li { margin: 0; }
+    @media (max-width: 540px) {
+      body { padding: 56px 20px 80px; font-size: 1.15rem; }
+      h1 { font-size: 1.4rem; }
     }
   </style>
 </head>
 <body>
-  <div class="square">
-    <div class="name-section">
-      <!-- <img src="images/profile.jpeg" alt="Vachagan Melikian" class="profile-pic"> -->
-      <div class="name-text">
-        <div class="name-container">
-          <div class="name-column">
-            <div class="name-part">vachagan</div>
-            <div class="pronunciation-part">/vɑt͡ʃʰɑˈɡɑn/</div>
-          </div>
-          <div class="name-column">
-            <div class="name-part">melikian</div>
-            <div class="pronunciation-part">/mɛli'kjɑn/</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="content-section">
-      <p class="intro">Hi, I'm Vach. I'm a student developer and researcher.</p>
-      
-      <p>I am an undergrad at Rutgers University, studying Computer Science, Cognitive Science, Linguistics, and Philosophy.</p>
-      
-      <p>I interned at Twitch (Amazon), where I worked on the <a href="https://play.google.com/store/apps/details?id=tv.twitch.android.app&hl=en_US" target="_blank">Twitch app for Android</a>. I am also a part-time developer at <a href="https://www.merit-match.com" target="_blank">MeritMatch</a>. Prior to that, I interned at Fidelity Investments, where I worked on the <a href="https://apps.apple.com/us/app/fidelity-health/id1508025073" target="_blank">Fidelity Health app for iOS</a>.</p>
-      
-      <p>I was also a fellow at the Rutgers Center for Cognitive Science, where I researched the intersection of language and cognition, focusing on syntax-semantics interface of active vs passive voice - working with <a href="https://sites.google.com/view/shannonbryant/about" target="_blank">Shannon Bryant</a> and <a href="https://sites.rutgers.edu/kristen-syrett/about/" target="_blank">Kristen Syrett</a>, alongside four undergrads.</p> 
-      
-      <p>Prior to that, I was a research assistant at the <a href="https://www.nicolaslab.org/" target="_blank">SHIRE (Social Human-AI Impressions & Representations) Lab</a>, where I developed computational approaches to identifying intersectional biases in large language models.</p>
-      
-      <ul class="links">
-        <li><a href="https://www.linkedin.com/in/vachagan-melikian/">linkedin</a></li>
-        <!-- <li><a href="https://github.com">github</a></li> -->
-      </ul>
-      <!-- <p>Here's a few school articles that involve me:</p>
-      <ul class="links">
-        <li><a href="https://www.ucl.ac.uk/news/student-news/get-involved/instagrammer-residence/vachagan-melikian" target="_blank">Instagrammer in Residence - UCL</a></li>
-        <li><a href="https://www.dailytargum.com/article/u-students-share-personal-experiences-perspectives-on-nagorno-karabakh-20231121" target="_blank">Personal Experiences on Nagorno-Karabakh - Daily Targum</a></li>
-      </ul> -->
-    </div>
+  <div class="wrap">
+    <h1>Vachagan Melikian</h1>
+    <p class="pron">/vɑt͡ʃʰɑˈɡɑn mɛliˈkjɑn/</p>
+
+    <p>I recently graduated from Rutgers University, where I studied Computer Science, Cognitive Science, Linguistics, and Philosophy. I care about technical AI safety and governance.</p>
+
+    <p>I founded <a href="https://rutgersaisafety.org">RAISE</a>, the Rutgers AI Safety Exchange, a student organization building career pathways into AI safety. This summer, I&rsquo;m joining the <a href="https://oaisi.org">Oxford AI Safety Initiative</a> (OAISI) for <a href="https://oaisi.org/arbox-4">ARBOx</a>, its alignment research bootcamp.</p>
+
+    <p>I&rsquo;ve interned as a software engineer at Twitch, working on the <a href="https://play.google.com/store/apps/details?id=tv.twitch.android.app&hl=en_US">Twitch app for Android</a>, and at Fidelity Investments on the <a href="https://apps.apple.com/us/app/fidelity-health/id1508025073">Fidelity Health app for iOS</a>.</p>
+
+    <p>As a fellow at the Rutgers Center for Cognitive Science, I researched the syntax&ndash;semantics interface, working with <a href="https://sites.google.com/view/shannonbryant/about">Shannon Bryant</a> and <a href="https://sites.rutgers.edu/kristen-syrett/about/">Kristen Syrett</a>. Earlier, at the <a href="https://www.nicolaslab.org/">SHIRE Lab</a>, I developed computational approaches to identifying intersectional biases in large language models.</p>
+
+    <ul class="links">
+      <li><a href="https://www.linkedin.com/in/vachagan-melikian/">LinkedIn</a></li>
+      <li><a href="https://x.com/_vachagan">Twitter</a></li>
+    </ul>
   </div>
 </body>
 </html>
