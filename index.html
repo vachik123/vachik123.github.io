@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vachagan Melikian</title>
+  <link rel="stylesheet" href="styles/portrait.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +21,7 @@
       --muted: #6b6b66;
       --bg: #ffffff;
       --rule: #e7e6e1;
-      --underline: #c9c8c2;
+      --link: #356552;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -28,7 +29,7 @@
         --muted: #97958c;
         --bg: #141413;
         --rule: #2b2a26;
-        --underline: #47453f;
+        --link: #a5c9b5;
       }
     }
     * { box-sizing: border-box; }
@@ -52,8 +53,9 @@
     }
     .pron { font-family: "Charis SIL", "Gentium Plus", "Doulos SIL", Georgia, serif; color: var(--muted); font-style: normal; font-size: 1.05rem; margin: 0 0 32px; }
     p { margin: 0 0 22px; }
-    a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; text-decoration-color: var(--underline); transition: text-decoration-color .15s ease; }
-    a:hover { text-decoration-color: var(--ink); }
+    a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 0.08em; text-decoration-color: currentColor; }
+    a:hover { text-decoration-thickness: 0.14em; }
+    a:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; border-radius: 2px; }
     .section-label {
       font-size: 0.78rem;
       text-transform: uppercase;
@@ -77,20 +79,34 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Vachagan Melikian</h1>
-    <p class="pron">/vɑt͡ʃʰɑˈɡɑn mɛliˈkjɑn/</p>
+    <div class="intro">
+      <div class="intro-copy">
+        <h1>Vachagan Melikian</h1>
+        <p class="pron">/vɑt͡ʃʰɑˈɡɑn mɛliˈkjɑn/</p>
+        <p>I'm Vach, an independent researcher. I study alignment and model welfare.</p>
+        <p>I live in Berkeley, CA, thanks to a <a href="https://bluedot.org/grants/career-transition">BlueDot Career Grant</a>.</p>
+      </div>
+      <div class="portrait portrait--plain">
+        <img src="assets/portrait.jpg" alt="Vachagan seated on a rock above a mountain valley" width="900" height="900">
+      </div>
+    </div>
 
-    <p>I recently graduated from Rutgers University, where I studied Computer Science, Cognitive Science, Linguistics, and Philosophy. I care about technical AI safety and governance.</p>
+    <p>I&rsquo;m interested in personas, introspection, and evaluation awareness, with a burgeoning interest in swarm psychology.</p>
 
-    <p>I founded <a href="https://rutgersaisafety.org">RAISE</a>, the Rutgers AI Safety Exchange, a student organization building career pathways into AI safety. This summer, I&rsquo;m joining the <a href="https://oaisi.org">Oxford AI Safety Initiative</a> (OAISI) for <a href="https://oaisi.org/arbox-4">ARBOx</a>, its alignment research bootcamp.</p>
+    <p>I recently graduated from Rutgers University, where I majored in Computer Science, Cognitive Science, Linguistics, and Philosophy.</p>
+
+    <p>I am the founder and director of <a href="https://rutgersaisafety.org">RAISE</a>, the Rutgers AI Safety Exchange, a student organization building career pathways into AI safety.
+
+    <!-- <p>This past summer, I joined the <a href="https://oaisi.org">Oxford AI Safety Initiative</a> (OAISI) for <a href="https://oaisi.org/arbox-4">ARBOx</a>, its alignment research bootcamp.</p> -->
 
     <p>I&rsquo;ve interned as a software engineer at Twitch, working on the <a href="https://play.google.com/store/apps/details?id=tv.twitch.android.app&hl=en_US">Twitch app for Android</a>, and at Fidelity Investments on the <a href="https://apps.apple.com/us/app/fidelity-health/id1508025073">Fidelity Health app for iOS</a>.</p>
 
     <p>As a fellow at the Rutgers Center for Cognitive Science, I researched the syntax&ndash;semantics interface, working with <a href="https://sites.google.com/view/shannonbryant/about">Shannon Bryant</a> and <a href="https://sites.rutgers.edu/kristen-syrett/about/">Kristen Syrett</a>. Earlier, at the <a href="https://www.nicolaslab.org/">SHIRE Lab</a>, I developed computational approaches to identifying intersectional biases in large language models.</p>
 
     <ul class="links">
+      <li><a href="mailto:vachik123@gmail.com">vachik123@gmail.com</a></li>
       <li><a href="https://www.linkedin.com/in/vachagan-melikian/">LinkedIn</a></li>
-      <li><a href="https://x.com/_vachagan">Twitter</a></li>
+      <li><a href="https://x.com/_vachagan">X</a></li>
     </ul>
   </div>
 </body>
