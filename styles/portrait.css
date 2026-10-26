@@ -16,7 +16,7 @@
 }
 .portrait img { display: block; width: 100%; height: auto; }
 .portrait--plain { cursor: default; touch-action: auto; aspect-ratio: auto; overflow: visible; }
-.portrait figcaption { margin-top: 8px; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+.portrait figcaption { margin-top: 8px; color: var(--muted); font-size: 0.85rem; font-style: italic; line-height: 1.4; }
 .intro {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
