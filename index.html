@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // the arrival: the text waits for the painting's dark structure, then rises in (forest.js says when)
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.documentElement.classList.add("arrive");
+      setTimeout(function () { document.documentElement.classList.add("text-in"); }, 4000);
+    }
+  </script>
   <title>Vachagan Melikian</title>
-  <link rel="stylesheet" href="styles/portrait.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,21 +22,15 @@
       src: url("/fonts/Charis-Regular.woff2") format("woff2");
       font-weight: 400; font-style: normal; font-display: swap;
     }
+    /* One palette in both color schemes: the text sits on the painted forest. */
     :root {
-      --ink: #1c1c1a;
-      --muted: #6b6b66;
-      --bg: #ffffff;
-      --rule: #e7e6e1;
-      --link: #356552;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --ink: #e9e8e3;
-        --muted: #97958c;
-        --bg: #141413;
-        --rule: #2b2a26;
-        --link: #a5c9b5;
-      }
+      color-scheme: dark;
+      --ink: #f4f0e2;
+      --muted: #dfe1cf;
+      --bg: #1d3029;
+      --rule: rgba(244, 240, 226, 0.22);
+      --link: #e2b95f;
+      --veil: 12, 24, 20;
     }
     * { box-sizing: border-box; }
     html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -43,7 +43,45 @@
       margin: 0;
       padding: 80px 24px 56px;
     }
-    .wrap { max-width: 660px; margin: 0 auto; }
+    .wrap { position: relative; z-index: 2; max-width: 660px; margin: 0 auto; }
+
+    /* The painting, fixed behind the page, covering the viewport */
+    /* 100lvh: the largest viewport height, so the painting doesn't jump as a phone's address bar comes and goes */
+    .forest { position: fixed; left: 0; right: 0; top: 0; height: 100vh; height: 100lvh; z-index: 0; overflow: hidden; background: var(--bg); }
+    /* anchored low (as POS in forest.js), so the trunks, hedge and lawn stay in view on wide and tall screens */
+    .forest picture, .forest img, .forest video, .forest canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 80%; display: block; }
+    /* the WebGL layer draws the timelapse and the painting (calmed under the text); the video and the still
+       show only where it can't */
+    .forest-lapse { opacity: 0; transition: opacity 1.4s ease; }
+    .forest-still { transition: opacity 1.4s ease; }
+    .forest.is-lapse .forest-lapse { opacity: 1; transition: opacity 0.35s ease; }
+    .forest.is-lapse .forest-still { opacity: 0; transition: none; }
+    .forest-live { opacity: 0; transition: opacity 0.35s ease; }
+    .forest.gl-on .forest-live { opacity: 1; }
+    html.forest-plain .forest::after { content: ""; position: absolute; inset: 0; background: rgba(var(--veil), 0.55); }
+    .forest-birds { pointer-events: none; }
+    .forest.is-lapse .forest-birds { opacity: 0; }
+    /* the text rises in, line by line, once the painting is dark enough to read it on */
+    html.arrive .wrap > * { opacity: 0; transform: translateY(10px); }
+    html.arrive.text-in .wrap > * { opacity: 1; transform: none; transition: opacity 0.9s ease, transform 1.1s cubic-bezier(.2, .7, .2, 1); }
+    html.arrive.text-in .wrap > *:nth-child(2) { transition-delay: 0.08s; }
+    html.arrive.text-in .wrap > *:nth-child(3) { transition-delay: 0.16s; }
+    html.arrive.text-in .wrap > *:nth-child(4) { transition-delay: 0.24s; }
+    html.arrive.text-in .wrap > *:nth-child(5) { transition-delay: 0.32s; }
+    html.arrive.text-in .wrap > *:nth-child(n+6) { transition-delay: 0.4s; }
+    .forest-controls { position: fixed; right: 14px; bottom: 12px; z-index: 3; display: flex; gap: 4px; }
+    .forest-controls button { opacity: 0; transition: opacity 0.8s ease; }
+    .forest-controls.is-shown button { opacity: 0.7; }
+    .forest-controls.is-shown button:hover, .forest-controls.is-shown button:focus-visible { opacity: 1; }
+    /* two small icons: birdsong on or off, and replay the painting */
+    .forest-replay, .forest-sound {
+      width: 38px; height: 38px; padding: 0; display: grid; place-items: center;
+      color: var(--ink); background: none; border: 0; border-radius: 50%; cursor: pointer;
+    }
+    .forest-controls svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .forest-sound[aria-pressed="true"] .off, .forest-sound[aria-pressed="false"] .on { display: none; }
+    .forest-replay:focus-visible, .forest-sound:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
+    .forest-replay[hidden], .forest-sound[hidden] { display: none; }
     h1 {
       font-size: 1.5rem;
       font-weight: 600;
@@ -53,9 +91,11 @@
     }
     .pron { font-family: "Charis SIL", "Gentium Plus", "Doulos SIL", Georgia, serif; color: var(--muted); font-style: normal; font-size: 1.05rem; margin: 0 0 32px; }
     p { margin: 0 0 22px; }
-    a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 0.08em; text-decoration-color: currentColor; }
-    a:hover { text-decoration-thickness: 0.14em; }
-    a:focus-visible { outline: 2px solid var(--link); outline-offset: 4px; border-radius: 2px; }
+    /* links: bold, in the text's own color; on hover or focus a squiggle is painted in under them by hand
+       (scripts/links.js paints it on .link-paint, a layer between the painting and the text) */
+    a { color: inherit; font-weight: 700; text-decoration: none; transition: color 0.3s ease; }
+    a:hover, a:focus-visible, a.is-painted { color: #f7ecc9; outline: none; }
+    .link-paint { position: fixed; left: 0; top: 0; width: 100%; height: 100vh; height: 100lvh; z-index: 1; pointer-events: none; }
     .section-label {
       font-size: 0.78rem;
       text-transform: uppercase;
@@ -75,22 +115,26 @@
       body { padding: 48px 20px 48px; font-size: 1.15rem; }
       h1 { font-size: 1.4rem; }
     }
+    @media (max-width: 760px) {
+    }
   </style>
 </head>
 <body>
+  <div class="forest" aria-hidden="true">
+    <picture>
+      <source media="(max-aspect-ratio: 85/100)" srcset="/assets/forest/mobile.webp?v=2">
+      <img class="forest-still" src="/assets/forest/desk.webp?v=2" alt="" decoding="async">
+    </picture>
+    <video class="forest-lapse" muted playsinline preload="auto"></video>
+    <canvas class="forest-live"></canvas>
+    <canvas class="forest-birds"></canvas>
+  </div>
+  <canvas class="link-paint" aria-hidden="true"></canvas>
   <div class="wrap">
-    <div class="intro">
-      <div class="intro-copy">
-        <h1>Vachagan Melikian</h1>
-        <p class="pron">/vɑt͡ʃʰɑˈɡɑn mɛliˈkjɑn/</p>
-        <p>I'm Vach, an independent researcher. I study alignment and model welfare.</p>
-        <p>I live in Berkeley, CA, thanks to a <a href="https://bluedot.org/grants/career-transition">BlueDot Career Grant</a>.</p>
-      </div>
-      <figure class="portrait portrait--plain">
-        <img src="assets/portrait.jpg" alt="Vachagan seated on a rock above a mountain valley" width="900" height="900">
-        <figcaption>Taft Point, Yosemite National Park.</figcaption>
-      </figure>
-    </div>
+    <h1>Vachagan Melikian</h1>
+    <p class="pron">/vɑt͡ʃʰɑˈɡɑn mɛliˈkjɑn/</p>
+    <p>I'm Vach, an independent researcher. I study alignment and model welfare.</p>
+    <p>I live in Berkeley, CA, thanks to a <a href="https://bluedot.org/grants/career-transition">BlueDot Career Grant</a>.</p>
 
     <p>I&rsquo;m interested in personas, introspection, and evaluation awareness, with a burgeoning interest in swarm psychology.</p>
 
@@ -110,5 +154,16 @@
       <li><a href="https://x.com/_vachagan">X</a></li>
     </ul>
   </div>
+  <div class="forest-controls">
+    <button class="forest-sound" type="button" aria-pressed="true" aria-label="Birdsong" title="Birdsong" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.2L11.5 6v12l-4.3-3.5H4z"/><path class="on" d="M15 9.6a3.4 3.4 0 0 1 0 4.8M17.6 7.2a6.8 6.8 0 0 1 0 9.6"/><path class="off" d="M15.5 9.8l4.4 4.4M19.9 9.8l-4.4 4.4"/></svg>
+    </button>
+    <button class="forest-replay" type="button" aria-label="Replay the painting" title="Replay the painting" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 13.5a7 7 0 1 0 1.9-6.4"/><path d="M5.6 4.2v3.9h3.9"/></svg>
+    </button>
+  </div>
+  <script src="/scripts/birds.js?v=20" defer></script>
+  <script src="/scripts/forest.js?v=31" defer></script>
+  <script src="/scripts/links.js?v=7" defer></script>
 </body>
 </html>
