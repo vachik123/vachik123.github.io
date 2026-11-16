@@ -200,14 +200,21 @@
   // Moving the pointer over the painting sends puffs of wind through the trees; a click sends a stronger one out
   // from where it fell, and calls a few birds there.
   var PUFFS = [], puffAt = 0, lastP = null, stir = 0, breeze = 0;
+  // whether a point of the screen is on the leaves (the canopy, down to its lowest fringe)
+  function overLeaves(x, y) {
+    var cw = canvas.clientWidth || innerWidth, ch = canvas.clientHeight || innerHeight;
+    var iw = still.naturalWidth || (srcW > 1 ? srcW : 1600), ih = still.naturalHeight || (srcH > 1 ? srcH : 1000);
+    var sc = Math.max(cw / iw, ch / ih), v = (y - (ch - ih * sc) * POS[1]) / (ih * sc);
+    return v < V.edge[0];
+  }
   function puff(x, y, dx, dy, strength) {
-    if (!live) return;
+    if (!liveFrom) return;
     // where it fell on the painting (image pixels), and how far it reaches there: about 70 CSS px, more for a click
     var cw = canvas.clientWidth || 1, ch = canvas.clientHeight || 1, sc = Math.max(cw / srcW, ch / srcH);
     var ix = (x - (cw - srcW * sc) * POS[0]) / sc, iy = (y - (ch - srcH * sc) * POS[1]) / sc;
     PUFFS.push({ ix: ix, iy: iy, dx: dx, dy: dy, t: tLive(), s: strength, r: (80 + 50 * Math.min(1, strength)) * (dx === 0 && dy === 0 ? 1.8 : 1) / sc });
     if (PUFFS.length > 8) PUFFS.shift();
-    stir = Math.min(1.5, stir + strength * 0.5);
+    if (overLeaves(x, y)) stir = Math.min(1.5, stir + strength * 0.5);   // only the leaves rustle
   }
   function tLive() { return (performance.now() - liveFrom) / 1000 + 40.0; }
   window.addEventListener("pointermove", function (e) {
@@ -224,7 +231,7 @@
     lastP = { x: e.clientX, y: e.clientY, t: now, px: lastP ? lastP.px : e.clientX, py: lastP ? lastP.py : e.clientY };
   }, { passive: true });
   document.addEventListener("click", function (e) {
-    if (!live || reduce.matches) return;
+    if (!liveFrom || reduce.matches) return;
     if (e.target.closest && e.target.closest("a, button, input, textarea, select, label")) return;
     var sel = window.getSelection && window.getSelection();
     if (sel && String(sel).length) return;
@@ -233,14 +240,15 @@
   });
   // how hard the wind blows now, for the sound of the leaves: the gusts across the trees, and the pointer's stir
   function windLevel() {
-    if (!live) return 0;
+    if (!liveFrom) return 0;
     var g = 0;
     for (var i = 0; i < 5; i++) g += gustAt(0.1 + 0.2 * i);
     // the pointer's stir becomes a breeze that builds over a couple of seconds and fades as slowly, and only ever
     // adds a little: wiggling it never makes the sound jump
-    stir = Math.min(1, stir) * 0.9;
-    breeze += (stir - breeze) * 0.04;
-    return (g / 5) * amp + Math.min(0.18, breeze * 0.3);
+    // the pointer's stir in the leaves becomes a rustle within half a second and dies away over two
+    stir = Math.min(1, stir) * 0.85;
+    breeze += (stir - breeze) * (stir > breeze ? 0.3 : 0.08);
+    return (g / 5) * amp + Math.min(0.5, breeze * 0.7);
   }
 
   // ---- the arrival -----------------------------------------------------------------------------------------------
@@ -260,9 +268,18 @@
     }, 3500);
   }
 
+  function birdsIn() {
+    makeFlock();
+    if (!flock) return;
+    root.classList.add("birds-in");
+    flock.start();
+  }
+
   function watchLapse() {
     if (!root.classList.contains("is-lapse")) return;
     if (video.currentTime >= TEXT_AT) textIn();
+    // the birds set off a moment before the wind, so the first is in the picture as the leaves begin to move
+    if (video.currentTime >= WIND_AT - 0.7 && !root.classList.contains("birds-in")) birdsIn();
     if (video.currentTime >= WIND_AT && !liveFrom) liveFrom = performance.now();   // the wind begins
     if (!liveFrom || video.currentTime < TEXT_AT) requestAnimationFrame(watchLapse);
   }
@@ -272,6 +289,7 @@
     if (controls) controls.classList.remove("is-shown");
     if (replay) replay.hidden = true;
     live = false; liveFrom = 0;
+    root.classList.remove("birds-in");
     if (flock) { flock.stop(); flock.reset(); }
     root.classList.remove("is-still");
     root.classList.add("is-lapse");
@@ -291,28 +309,28 @@
       // a point of the painting on the screen, as object-fit: cover and object-position place it
       map: function (u, v, withSway) {
         var cw = birdCanvas.clientWidth, ch = birdCanvas.clientHeight;
-        var iw = still.naturalWidth || 1600, ih = still.naturalHeight || 1000;
+        var iw = still.naturalWidth || (srcW > 1 ? srcW : 1600), ih = still.naturalHeight || (srcH > 1 ? srcH : 1000);
         var s = Math.max((cw + 2 * MARGIN) / iw, (ch + 2 * MARGIN) / ih);
         var x = (cw - iw * s) * POS[0] + u * iw * s, y = (ch - ih * s) * POS[1] + v * ih * s;
-        if (withSway && live) {
+        if (withSway && liveFrom) {
           var o = windAt(u * iw, v * ih, iw, ih, WIND.clump / s, tNow);
           x += o[0] * amp; y += o[1] * amp;
         }
         return [x, y];
       },
       // the gust at a share of the width (0 calm, about 1 at the height of a strong gust) and where the canopy ends
-      gust: function (u) { return live ? gustAt(u) * amp : 0; },
+      gust: function (u) { return liveFrom ? gustAt(u) * amp : 0; },
       canopy: function () { return V.canopy; },
       // a point of the screen as a point of the painting (no wind)
       unmap: function (x, y) {
         var cw = birdCanvas.clientWidth, ch = birdCanvas.clientHeight;
-        var iw = still.naturalWidth || 1600, ih = still.naturalHeight || 1000;
+        var iw = still.naturalWidth || (srcW > 1 ? srcW : 1600), ih = still.naturalHeight || (srcH > 1 ? srcH : 1000);
         var s = Math.max((cw + 2 * MARGIN) / iw, (ch + 2 * MARGIN) / ih);
         return [(x - (cw - iw * s) * POS[0]) / (iw * s), (y - (ch - ih * s) * POS[1]) / (ih * s)];
       },
       windLevel: windLevel,
       // the painting's frame: it changes 12 times a second, when the live painting steps
-      frame: function () { return live && gl ? tNow : Math.floor(performance.now() / (1000 / 12)); }
+      frame: function () { return liveFrom && gl ? tNow : Math.floor(performance.now() / (1000 / 12)); }
     });
     flock.setBirds(V.birds);
     flock.setPerches(V.perches);
@@ -327,7 +345,7 @@
   // comes alive. On unless the visitor turned it off.
   var sound = null;
   function makeSound() {
-    if (!window.ForestBirds || !window.ForestBirds.Sound) return;
+    if (sound || !window.ForestBirds || !window.ForestBirds.Sound) return;
     sound = new window.ForestBirds.Sound();
     var stored = null;
     try { stored = localStorage.getItem("forest-birdsong"); } catch (e) {}
@@ -337,10 +355,9 @@
     var unlock = function () { sound.unlock(); };
     ["pointerdown", "keydown", "touchend"].forEach(function (ev) { document.addEventListener(ev, unlock, { passive: true }); });
     if (soundBtn) soundBtn.addEventListener("click", function () {
-      sound.on = !sound.on;
+      sound.setOn(!sound.on);
       soundBtn.setAttribute("aria-pressed", sound.on ? "true" : "false");
       try { localStorage.setItem("forest-birdsong", sound.on ? "on" : "off"); } catch (e) {}
-      if (sound.on) { sound.preload(); sound.unlock(); } else sound.hush();
     });
     // the wind's strength for the sound, ten times a second: the gusts and the pointer once the painting is alive,
     // still air before
@@ -348,7 +365,7 @@
   }
   // where across the picture the wind is now (-1 left .. 1 right; 0 when it is still)
   function windPanNow() {
-    if (!live) return 0;
+    if (!liveFrom) return 0;
     var sum = 0, at = 0;
     for (var i = 0; i < 5; i++) { var u = 0.1 + 0.2 * i, g = gustAt(u) * amp; sum += g; at += g * u; }
     return sum > 0.02 ? (at / sum) * 2 - 1 : 0;
@@ -538,6 +555,7 @@
 
   function startLive() {
     makeFlock();
+    root.classList.add("birds-in");
     if (!initGL()) { if (flock) flock.start(); return false; }
     mode = "live"; live = true; last = 0;
     if (!liveFrom) liveFrom = performance.now();               // (the wind's clock runs on from the timelapse)
@@ -663,13 +681,32 @@
     textIn(); toneFrom = performance.now() - 1000;
     if (initGL()) { mode = "static"; drawStatic(); }
   } else {
-    makeSound();
+    // The timelapse is downloaded whole before it plays, so it never stalls part way (the first second, the washes
+    // over the whole canvas, is the hardest to stream). Until then the page stays dark. The wind's recordings wait
+    // for it, so they don't compete. If it takes longer than LOAD_WAIT, the timelapse is skipped: the finished
+    // painting comes alive at once rather than a timelapse that stutters.
+    var LOAD_WAIT = 3500, settled = false, abort = window.AbortController ? new AbortController() : null;
+    root.classList.add("is-lapse");
     video.addEventListener("ended", showStill);
     video.addEventListener("error", showStill);
-    video.src = V.lapse;
-    video.load();
-    playLapse();
     if (replay) replay.addEventListener("click", playLapse);
+    var go = function (src) {
+      if (settled) return; settled = true; clearTimeout(skip);
+      video.src = src; video.load();
+      playLapse();
+      makeSound();
+    };
+    var skip = setTimeout(function () {
+      if (settled) return; settled = true;
+      if (abort) abort.abort();                 // the download that was too slow is stopped
+      video.src = V.lapse;                      // for a replay later, streamed
+      showStill();
+      makeSound();
+    }, LOAD_WAIT);
+    if (window.fetch && window.URL && URL.createObjectURL) {
+      fetch(V.lapse, { priority: "high", signal: abort ? abort.signal : undefined }).then(function (r) { if (!r.ok) throw r; return r.blob(); })
+        .then(function (b) { go(URL.createObjectURL(b)); }, function () { go(V.lapse); });
+    } else go(V.lapse);
   }
   reduce.addEventListener && reduce.addEventListener("change", function (e) {
     if (e.matches) {

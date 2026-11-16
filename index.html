@@ -61,7 +61,7 @@
     .forest.gl-on .forest-live { opacity: 1; }
     html.forest-plain .forest::after { content: ""; position: absolute; inset: 0; background: rgba(var(--veil), 0.55); }
     .forest-birds { pointer-events: none; filter: brightness(0.9); }   /* as dark as the painting (DARKEN in forest.js) */
-    .forest.is-lapse .forest-birds { opacity: 0; }
+    .forest.is-lapse:not(.birds-in) .forest-birds { opacity: 0; }   /* the birds come in with the wind, 3 s in */
     /* the text rises in, line by line, once the painting is dark enough to read it on */
     html.arrive .wrap > * { opacity: 0; transform: translateY(10px); }
     html.arrive.text-in .wrap > * { opacity: 1; transform: none; transition: opacity 0.9s ease, transform 1.1s cubic-bezier(.2, .7, .2, 1); }
@@ -124,7 +124,7 @@
   <div class="forest" aria-hidden="true">
     <picture>
       <source media="(max-aspect-ratio: 85/100)" srcset="/assets/forest/mobile.webp?v=2">
-      <img class="forest-still" src="/assets/forest/desk.webp?v=2" alt="" decoding="async">
+      <img class="forest-still" src="/assets/forest/desk.webp?v=2" alt="" decoding="async" fetchpriority="low">
     </picture>
     <video class="forest-lapse" muted playsinline preload="auto"></video>
     <canvas class="forest-live"></canvas>
@@ -163,8 +163,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 13.5a7 7 0 1 0 1.9-6.4"/><path d="M5.6 4.2v3.9h3.9"/></svg>
     </button>
   </div>
-  <script src="/scripts/birds.js?v=24" defer></script>
-  <script src="/scripts/forest.js?v=38" defer></script>
+  <script src="/scripts/birds.js?v=29" defer></script>
+  <script src="/scripts/forest.js?v=45" defer></script>
   <script src="/scripts/links.js?v=7" defer></script>
 </body>
 </html>

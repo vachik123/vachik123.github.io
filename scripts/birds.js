@@ -113,6 +113,7 @@
 
   // the synthesizer: sine voices with a soft second harmonic, swept, with vibrato where a note has it; panned to
   // where the bird is, into a little room of reverb. A browser lets it sound only after the visitor taps or types.
+  var MASTER = 0.09;                 // quiet: a background, not a feature
   function Sound() { this.ctx = null; this.on = true; }
   Sound.prototype.available = function () { return !!(window.AudioContext || window.webkitAudioContext); };
   Sound.prototype.unlock = function () {
@@ -120,7 +121,7 @@
     if (!this.ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       var c = this.ctx = new AC();
-      this.master = c.createGain(); this.master.gain.value = 0.09;   // quiet: a background, not a feature
+      this.master = c.createGain(); this.master.gain.value = MASTER;
       this.master.connect(c.destination);
       var hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
       this.bus = hp;
@@ -137,12 +138,25 @@
       hp.connect(rev); rev.connect(wet); wet.connect(this.master);
       this.makeWind();
     }
-    if (this.ctx.state === "suspended") this.ctx.resume();
+    var self = this;
+    this.master.gain.setTargetAtTime(MASTER, this.ctx.currentTime, 0.04);
+    // a browser starts the sound a moment after it is asked: if it was muted in that moment, it stays silent
+    if (this.ctx.state === "suspended") this.ctx.resume().then(function () { if (!self.on) self.ctx.suspend(); }, function () {});
+  };
+  // the speaker button: off fades the sound out at once and stops it; on brings it back
+  Sound.prototype.setOn = function (on) {
+    this.on = on;
+    if (on) { this.preload(); this.unlock(); return; }
+    if (!this.ctx) return;
+    var c = this.ctx, self = this;
+    this.master.gain.cancelScheduledValues(c.currentTime);
+    this.master.gain.setTargetAtTime(0, c.currentTime, 0.03);
+    setTimeout(function () { if (!self.on) c.suspend(); }, 200);
   };
   // The wind in the leaves, recorded: two seamless loops cut from Joseph Sardin's recordings "Wind in the Trees"
   // (BigSoundBank #0904, the forest of Rambouillet) and "Wind in shrub" (#0907), both CC0, blended, the rumble
   // taken out and the leaves brought forward. A calm loop is always there, soft; a gust loop swells in as a gust
-  // crosses the trees, and moves across with it. The files are fetched as the page loads (preload), so the wind can
+  // crosses the trees, and moves across with it. When nothing stirs the leaves, the wind is silent. The files are fetched as the page loads (preload), so the wind can
   // start the moment the browser lets the sound play.
   var WIND_LOOPS = { calm: [1.0, 31.0], gust: [1.0, 25.0] };   // where each file's seamless loop begins and ends (s)
   function windFile(n) { return fetch("/assets/forest/wind-" + n + ".mp3?v=2").then(function (r) { return r.arrayBuffer(); }); }
@@ -166,7 +180,6 @@
         s.buffer = buf; s.loop = true; s.loopStart = L[0]; s.loopEnd = Math.min(L[1], buf.duration);
         s.connect(n === "calm" ? self.calmG : self.gustG);
         s.start(0, L[0] + Math.random() * (s.loopEnd - L[0]));
-        if (n === "calm") self.calmG.gain.setTargetAtTime(0.32, c.currentTime, 0.35);   // in at once, softly
       }).catch(function () {});
     });
     this.lv = 0;
@@ -176,14 +189,14 @@
   Sound.prototype.wind = function (level, pan) {
     if (!this.ready() || !this.calmG) return;
     var now = this.ctx.currentTime, target = clamp(level, 0, 1.2);
-    this.lv += (target - this.lv) * (target > this.lv ? 0.06 : 0.03);     // swells over a second or two, dies over 3
+    this.lv += (target - this.lv) * (target > this.lv ? 0.15 : 0.09);     // swells within a second, dies over about two
     var g = Math.min(1, this.lv / 0.45);                                // a strong gust brings the level to about half
-    this.calmG.gain.setTargetAtTime(0.32 * (1 - 0.25 * g), now, 0.8);   // the leaves are always moving a little
+    this.calmG.gain.setTargetAtTime(0.32 * ss(0.02, 0.35, g), now, 0.5); // silent when nothing stirs the leaves
     this.gustG.gain.setTargetAtTime(1.25 * ss(0.04, 1, g), now, 0.7);   // and a gust sweeps through them
     if (this.windPan) this.windPan.pan.setTargetAtTime(clamp(pan || 0, -0.6, 0.6) * g, now, 0.8);
   };
   Sound.prototype.wake = function () { if (this.on && this.ctx && this.ctx.state === "suspended") this.ctx.resume(); };
-  Sound.prototype.hush = function () { if (this.ctx && this.ctx.state === "running") this.ctx.suspend(); };
+  Sound.prototype.hush = function () { if (this.ctx && this.ctx.state !== "closed") this.ctx.suspend(); };
   Sound.prototype.ready = function () { return this.on && this.ctx && this.ctx.state === "running"; };
   Sound.prototype.play = function (notes, pan, vol, delay) {
     var c = this.ctx, t0 = c.currentTime + delay, out = c.createGain(), end = 0;
@@ -494,7 +507,7 @@
     this.birds = [];
     for (var i = 0; i < n; i++) {
       var b = new Bird(kinds[i % kinds.length], 101 + i * 37, 0.82 + 0.3 * ((i * 0.618) % 1));
-      b.timer = 0.5 + i * 0.22 + b.r() * 0.25;                       // they come in together, on the first gust
+      b.timer = 0.1 + i * 0.22 + b.r() * 0.2;                        // they come in together, on the first gust
       b.slot = i;
       this.birds.push(b);
     }
@@ -540,6 +553,7 @@
     if (b.at) { this.release(b.at); b.at = null; }
     b.path = P.pts;
     b.dur = clamp(P.dist / (190 + 70 * b.r()), 0.9, 6);
+    b.inFlight = b.state === "off";               // coming in from outside the picture: already flying, no take-off
     b.tt = 0; b.dest = to; b.state = "fly"; b.glide = false;
     b.glideAt = b.r() < 0.6 ? 0.35 + b.r() * 0.2 : 2;
   };
@@ -609,7 +623,8 @@
         if (b.timer <= 0) {
           // in from the left (the first time, close together, on the first gust) or from either side
           var first = !b.entered, side = first || b.r() < 0.5 ? -0.12 : 1.12;
-          b.u = side + (side < 0 ? -1 : 1) * 0.03 * b.r();
+          if (first) side = -0.035;                 // the first time, from just outside the edge: in at once
+          b.u = side + (side < 0 ? -1 : 1) * 0.02 * b.r();
           b.v0 = first ? 0.14 + 0.06 * b.slot + 0.04 * b.r() : 0.08 + b.r() * 0.35;
           var to = self.choose(b);
           if (to) { self.fly(b, to); b.entered = true; } else b.timer = 2;
@@ -620,6 +635,7 @@
         b.tt += dt / b.dur;
         var t = clamp(b.tt, 0, 1);
         var e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // away from rest and back to rest
+        if (b.inFlight) e = 1 - (1 - t) * (1 - t);                       // in at full speed, slowing only to land
         e = lerp(t, e, 0.65);
         var q = bez(b.path, e);
         var q2 = bez(b.path, Math.min(1, e + 0.01));
@@ -735,7 +751,7 @@
     var i = 0;
     this.birds.forEach(function (b) {
       b.state = "off"; b.at = null; b.open = 0; b.song = null; b.entered = false; b.landed = false;
-      b.timer = 0.5 + (i++) * 0.22 + b.r() * 0.25;
+      b.timer = 0.1 + (i++) * 0.22 + b.r() * 0.2;
     });
   };
 
