@@ -29,13 +29,13 @@
   var tall = window.matchMedia("(max-aspect-ratio: 85/100)");   // the same test the <picture> uses
   // perches: [u, v, kind] as shares of the painting's width and height
   var VARIANTS = {
-    mobile: { lapse: "/assets/forest/mobile.mp4?v=6", canopy: 0.8, edge: [0.815, 0.85], cell: 120, birds: 3, perches: [
+    mobile: { lapse: "/assets/forest/mobile.mp4?v=7", canopy: 0.8, edge: [0.815, 0.85], cell: 120, birds: 3, perches: [
       [0.08, 0.8, "branch"], [0.2, 0.815, "branch"], [0.33, 0.82, "branch"], [0.7, 0.815, "branch"], [0.83, 0.8, "branch"],
       [0.95, 0.79, "branch"], [0.15, 0.62, "branch"], [0.85, 0.66, "branch"], [0.1, 0.45, "branch"], [0.9, 0.5, "branch"],
       [0.78, 0.33, "branch"], [0.2, 0.3, "branch"],
       [0.15, 0.852, "hedge"], [0.38, 0.853, "hedge"], [0.62, 0.857, "hedge"], [0.85, 0.855, "hedge"],
       [0.3, 0.93, "ground"], [0.55, 0.95, "ground"], [0.72, 0.92, "ground"]] },
-    desk: { lapse: "/assets/forest/desk.mp4?v=6", canopy: 0.75, edge: [0.765, 0.815], cell: 260, birds: 6, perches: [
+    desk: { lapse: "/assets/forest/desk.mp4?v=7", canopy: 0.75, edge: [0.765, 0.815], cell: 260, birds: 6, perches: [
       [0.045, 0.665, "branch"], [0.09, 0.705, "branch"], [0.14, 0.695, "branch"], [0.2, 0.735, "branch"], [0.275, 0.745, "branch"],
       [0.72, 0.74, "branch"], [0.795, 0.725, "branch"], [0.88, 0.7, "branch"], [0.945, 0.68, "branch"],
       [0.06, 0.42, "branch"], [0.15, 0.3, "branch"], [0.12, 0.56, "branch"], [0.22, 0.5, "branch"], [0.86, 0.36, "branch"],
@@ -284,6 +284,21 @@
     if (!liveFrom || video.currentTime < TEXT_AT) requestAnimationFrame(watchLapse);
   }
 
+  // If the timelapse ever stops moving while it should be playing (a slow stream, a device that can't keep up),
+  // the page doesn't sit on a frozen frame: after STALL_MS it moves on to the finished painting, alive.
+  var STALL_MS = 700, stallT = -1, stallSince = 0, stallTimer = 0;
+  function watchStall() {
+    clearInterval(stallTimer);
+    stallT = -1; stallSince = performance.now();
+    stallTimer = setInterval(function () {
+      if (!root.classList.contains("is-lapse") || video.ended) { clearInterval(stallTimer); return; }
+      if (video.currentTime !== stallT) { stallT = video.currentTime; stallSince = performance.now(); return; }
+      if (performance.now() - stallSince > STALL_MS && !document.hidden) {
+        clearInterval(stallTimer); video.pause(); showStill();
+      }
+    }, 100);
+  }
+
   function playLapse() {
     clearTimeout(controlsTimer);
     if (controls) controls.classList.remove("is-shown");
@@ -298,6 +313,7 @@
     var p = video.play();
     if (p && p.catch) p.catch(showStill);   // autoplay refused: show the finished painting
     requestAnimationFrame(watchLapse);
+    watchStall();
   }
 
   // ---- the birds -----------------------------------------------------------------------------------------
