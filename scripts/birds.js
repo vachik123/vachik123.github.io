@@ -139,77 +139,48 @@
     }
     if (this.ctx.state === "suspended") this.ctx.resume();
   };
-  // the wind in the leaves: a deep, smooth noise for the air, rising and falling slowly, and the leaves as many
-  // tiny separate ticks of filtered noise at random moments (a few a second when it is still, many in a gust),
-  // each a little different in pitch, length and place
+  // The wind in the leaves, recorded: two seamless loops cut from Joseph Sardin's recordings "Wind in the Trees"
+  // (BigSoundBank #0904, the forest of Rambouillet) and "Wind in shrub" (#0907), both CC0, blended, the rumble
+  // taken out and the leaves brought forward. A calm loop is always there, soft; a gust loop swells in as a gust
+  // crosses the trees, and moves across with it. The files are fetched as the page loads (preload), so the wind can
+  // start the moment the browser lets the sound play.
+  var WIND_LOOPS = { calm: [1.0, 31.0], gust: [1.0, 25.0] };   // where each file's seamless loop begins and ends (s)
+  function windFile(n) { return fetch("/assets/forest/wind-" + n + ".mp3?v=2").then(function (r) { return r.arrayBuffer(); }); }
+  Sound.prototype.preload = function () {
+    if (this.files || !this.available()) return;
+    this.files = {};
+    for (var n in WIND_LOOPS) this.files[n] = windFile(n);
+  };
   Sound.prototype.makeWind = function () {
-    var c = this.ctx, len = c.sampleRate * 3, i, a = 99, b = 0;
-    var white = c.createBuffer(1, len, c.sampleRate), w = white.getChannelData(0);
-    var brown = c.createBuffer(1, len, c.sampleRate), br = brown.getChannelData(0), peak = 0;
-    for (i = 0; i < len; i++) {
-      a = (a * 1103515245 + 12345) & 0x7fffffff;
-      w[i] = (a / 0x7fffffff) * 2 - 1;
-      b = (b + 0.02 * w[i]) / 1.02; br[i] = b; peak = Math.max(peak, Math.abs(b));
-    }
-    for (i = 0; i < len; i++) br[i] /= peak;
-    // loop the brown noise without a click: fade its ends into each other
-    var fade = Math.floor(c.sampleRate * 0.25);
-    for (i = 0; i < fade; i++) { var f = i / fade; br[i] = br[i] * f + br[len - fade + i] * (1 - f); }
-    this.white = white;
-    var src = c.createBufferSource(); src.buffer = brown; src.loop = true; src.loopEnd = (len - fade) / c.sampleRate;
-    var lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1100; lp.Q.value = 0.3;
-    var hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 160; hp.Q.value = 0.5;   // no rumble
-    this.windBody = c.createGain(); this.windBody.gain.value = 0;
-    src.connect(hp); hp.connect(lp); lp.connect(this.windBody); this.windBody.connect(this.master);
-    src.start();
+    var c = this.ctx, self = this;
+    this.windOut = c.createGain(); this.windOut.gain.value = 1; this.windOut.connect(this.master);
+    this.calmG = c.createGain(); this.calmG.gain.value = 0; this.calmG.connect(this.windOut);
+    this.gustG = c.createGain(); this.gustG.gain.value = 0;
+    if (c.createStereoPanner) { this.windPan = c.createStereoPanner(); this.gustG.connect(this.windPan); this.windPan.connect(this.windOut); }
+    else this.gustG.connect(this.windOut);
+    Object.keys(WIND_LOOPS).forEach(function (n) {
+      ((self.files && self.files[n]) || windFile(n)).then(function (b) {
+        return new Promise(function (res, rej) { c.decodeAudioData(b, res, rej); });
+      }).then(function (buf) {
+        var L = WIND_LOOPS[n], s = c.createBufferSource();
+        s.buffer = buf; s.loop = true; s.loopStart = L[0]; s.loopEnd = Math.min(L[1], buf.duration);
+        s.connect(n === "calm" ? self.calmG : self.gustG);
+        s.start(0, L[0] + Math.random() * (s.loopEnd - L[0]));
+        if (n === "calm") self.calmG.gain.setTargetAtTime(0.32, c.currentTime, 0.35);   // in at once, softly
+      }).catch(function () {});
+    });
     this.lv = 0;
   };
-  // how hard the wind blows now (0 still .. about 1 at the height of a strong gust); called about 10 times a second
-  Sound.prototype.wind = function (level) {
-    if (!this.ready() || !this.windBody) return;
-    var c = this.ctx, now = c.currentTime, target = Math.max(0, Math.min(1.2, level));
-    this.lv += (target - this.lv) * (target > this.lv ? 0.05 : 0.03);     // rises over two seconds, falls over three
-    var lv = this.lv;
-    this.windBody.gain.setTargetAtTime(0.12 + 1.2 * lv, now, 1.5);
-    // the leaves for the next tenth of a second
-    var rate = 6 + 60 * lv, n = 0, x = Math.random(), e = Math.exp(-rate * 0.1), p = 1;
-    while ((p *= Math.random()) > e && n < 12) n++;                   // as many as fall in a tenth of a second
-    for (var k = 0; k < n; k++) {
-      var t = now + 0.05 + Math.random() * 0.1, dur = 0.04 + Math.random() * 0.09;
-      var g = c.createGain(), bp = c.createBiquadFilter(), s = c.createBufferSource();
-      s.buffer = this.white;
-      bp.type = "bandpass"; bp.frequency.value = 1800 + Math.random() * 3500; bp.Q.value = 1.2 + Math.random() * 1.8;
-      var amp = (0.12 + 0.4 * lv) * (0.3 + 0.7 * Math.random());     // soft: they blend into a rustle
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(amp, t + 0.012 + Math.random() * 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      s.connect(bp); bp.connect(g);
-      if (c.createStereoPanner) { var pn = c.createStereoPanner(); pn.pan.value = (Math.random() - 0.5) * 1.4; g.connect(pn); pn.connect(this.master); }
-      else g.connect(this.master);
-      s.start(t, Math.random() * 2.5, dur + 0.02);
-    }
-    // and over it, crisp: dry leaves flicking against each other, little clusters of very short bright clicks
-    var crate = 1 + 14 * lv, cn = 0; e = Math.exp(-crate * 0.1); p = 1;
-    while ((p *= Math.random()) > e && cn < 4) cn++;
-    for (var q = 0; q < cn; q++) {
-      var t0 = now + 0.05 + Math.random() * 0.1, m = 3 + Math.floor(Math.random() * 6);
-      var hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5000 + Math.random() * 2500; hp.Q.value = 0.7;
-      var out = hp;
-      if (c.createStereoPanner) { var cp = c.createStereoPanner(); cp.pan.value = (Math.random() - 0.5) * 1.6; hp.connect(cp); out = cp; }
-      out.connect(this.master);
-      var ct = t0, base = (0.05 + 0.2 * lv) * (0.5 + 0.5 * Math.random());
-      for (var j = 0; j < m; j++) {
-        var cd = 0.003 + Math.random() * 0.005, ca = base * Math.sin(Math.PI * (j + 0.5) / m) * (0.5 + 0.5 * Math.random());
-        var cs = c.createBufferSource(), cg = c.createGain();
-        cs.buffer = this.white;
-        cg.gain.setValueAtTime(0.0001, ct);
-        cg.gain.exponentialRampToValueAtTime(Math.max(0.0002, ca), ct + 0.001);
-        cg.gain.exponentialRampToValueAtTime(0.0001, ct + cd);
-        cs.connect(cg); cg.connect(hp);
-        cs.start(ct, Math.random() * 2.5, cd + 0.01);
-        ct += 0.004 + Math.random() * 0.012;
-      }
-    }
+  // how hard the wind blows now (0 still .. about 1 at the height of a strong gust) and where across the picture
+  // the gust is (-1 left .. 1 right); called about 10 times a second
+  Sound.prototype.wind = function (level, pan) {
+    if (!this.ready() || !this.calmG) return;
+    var now = this.ctx.currentTime, target = clamp(level, 0, 1.2);
+    this.lv += (target - this.lv) * (target > this.lv ? 0.06 : 0.03);     // swells over a second or two, dies over 3
+    var g = Math.min(1, this.lv / 0.45);                                // a strong gust brings the level to about half
+    this.calmG.gain.setTargetAtTime(0.32 * (1 - 0.25 * g), now, 0.8);   // the leaves are always moving a little
+    this.gustG.gain.setTargetAtTime(1.25 * ss(0.04, 1, g), now, 0.7);   // and a gust sweeps through them
+    if (this.windPan) this.windPan.pan.setTargetAtTime(clamp(pan || 0, -0.6, 0.6) * g, now, 0.8);
   };
   Sound.prototype.wake = function () { if (this.on && this.ctx && this.ctx.state === "suspended") this.ctx.resume(); };
   Sound.prototype.hush = function () { if (this.ctx && this.ctx.state === "running") this.ctx.suspend(); };
@@ -621,11 +592,16 @@
     var b = (r() < 0.8 ? pick(sitting) : null) || pick(flying) || pick(sitting) || pick(free);
     if (b) this.sing(b, true);
   };
+  // where across the picture the wind is now, for the sound (-1 left .. 1 right; 0 when it is still)
+  Flock.prototype.windPan = function () {
+    if (!this.view.gust) return 0;
+    var sum = 0, at = 0;
+    for (var i = 0; i < 5; i++) { var u = 0.1 + 0.2 * i, g = this.view.gust(u); sum += g; at += g * u; }
+    return sum > 0.02 ? (at / sum) * 2 - 1 : 0;
+  };
   Flock.prototype.step = function (dt) {
     var self = this;
     this.calls();
-    this.windT = (this.windT || 0) + dt;
-    if (this.windT > 0.1 && this.view.windLevel) { this.windT = 0; this.sound.wind(this.view.windLevel()); }
     this.birds.forEach(function (b) {
       b.timer -= dt;
       self.songPose(b, dt);
@@ -763,5 +739,5 @@
     });
   };
 
-  window.ForestBirds = { Flock: Flock, Bird: Bird };
+  window.ForestBirds = { Flock: Flock, Bird: Bird, Sound: Sound };
 })();

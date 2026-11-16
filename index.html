@@ -59,7 +59,7 @@
     .forest-live { opacity: 0; transition: opacity 0.35s ease; }
     .forest.gl-on .forest-live { opacity: 1; }
     html.forest-plain .forest::after { content: ""; position: absolute; inset: 0; background: rgba(var(--veil), 0.55); }
-    .forest-birds { pointer-events: none; }
+    .forest-birds { pointer-events: none; filter: brightness(0.9); }   /* as dark as the painting (DARKEN in forest.js) */
     .forest.is-lapse .forest-birds { opacity: 0; }
     /* the text rises in, line by line, once the painting is dark enough to read it on */
     html.arrive .wrap > * { opacity: 0; transform: translateY(10px); }
@@ -162,8 +162,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 13.5a7 7 0 1 0 1.9-6.4"/><path d="M5.6 4.2v3.9h3.9"/></svg>
     </button>
   </div>
-  <script src="/scripts/birds.js?v=20" defer></script>
-  <script src="/scripts/forest.js?v=31" defer></script>
+  <script src="/scripts/birds.js?v=24" defer></script>
+  <script src="/scripts/forest.js?v=38" defer></script>
   <script src="/scripts/links.js?v=7" defer></script>
 </body>
 </html>

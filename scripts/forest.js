@@ -29,13 +29,13 @@
   var tall = window.matchMedia("(max-aspect-ratio: 85/100)");   // the same test the <picture> uses
   // perches: [u, v, kind] as shares of the painting's width and height
   var VARIANTS = {
-    mobile: { lapse: "/assets/forest/mobile.mp4?v=4", canopy: 0.8, edge: [0.815, 0.85], cell: 120, birds: 3, perches: [
+    mobile: { lapse: "/assets/forest/mobile.mp4?v=6", canopy: 0.8, edge: [0.815, 0.85], cell: 120, birds: 3, perches: [
       [0.08, 0.8, "branch"], [0.2, 0.815, "branch"], [0.33, 0.82, "branch"], [0.7, 0.815, "branch"], [0.83, 0.8, "branch"],
       [0.95, 0.79, "branch"], [0.15, 0.62, "branch"], [0.85, 0.66, "branch"], [0.1, 0.45, "branch"], [0.9, 0.5, "branch"],
       [0.78, 0.33, "branch"], [0.2, 0.3, "branch"],
       [0.15, 0.852, "hedge"], [0.38, 0.853, "hedge"], [0.62, 0.857, "hedge"], [0.85, 0.855, "hedge"],
       [0.3, 0.93, "ground"], [0.55, 0.95, "ground"], [0.72, 0.92, "ground"]] },
-    desk: { lapse: "/assets/forest/desk.mp4?v=4", canopy: 0.75, edge: [0.765, 0.815], cell: 260, birds: 6, perches: [
+    desk: { lapse: "/assets/forest/desk.mp4?v=6", canopy: 0.75, edge: [0.765, 0.815], cell: 260, birds: 6, perches: [
       [0.045, 0.665, "branch"], [0.09, 0.705, "branch"], [0.14, 0.695, "branch"], [0.2, 0.735, "branch"], [0.275, 0.745, "branch"],
       [0.72, 0.74, "branch"], [0.795, 0.725, "branch"], [0.88, 0.7, "branch"], [0.945, 0.68, "branch"],
       [0.06, 0.42, "branch"], [0.15, 0.3, "branch"], [0.12, 0.56, "branch"], [0.22, 0.5, "branch"], [0.86, 0.36, "branch"],
@@ -78,6 +78,9 @@
   var tmtex = null, tmFor = null;
   var gl = null, prog = null, tex = null, texSrc = "", raf = 0, amp = 0, live = false, last = 0, tNow = 40;
   var mode = "";                     // "lapse": the video's frames; "live": the still, alive; "static": the still, once
+  // the wind's clock: it starts 3 s into the timelapse (WIND_AT), while the trees are still filling with dots, and
+  // runs on through the live painting
+  var WIND_AT = 3.0;
   var liveFrom = 0, srcW = 1, srcH = 1, lastVideoT = -1;
   var flock = null;
 
@@ -88,6 +91,9 @@
   // numbers (the clumps' random values come from one table, given to the shader as a texture), so a bird sitting
   // on a branch moves with its clump.
   var WIND = { period: 12, speed: 0.3, push: 10, idle: 0.7, clump: 80 };
+  // the painting is drawn a little larger than the screen, with this much of it (CSS px) past each edge, so the
+  // wind (up to about 18 px in a gust, more with the pointer's ripples) always has real paint to move in
+  var MARGIN = 32;
   var DAB = 13;                      // the moving pieces of paint: about the size of the painted marks (CSS px)
   var STEPS = 12;                    // the live painting moves 12 times a second
   function ss(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
@@ -96,7 +102,7 @@
   (function () { var a = 7; for (var i = 0; i < RT.length; i++) { a = (a * 1103515245 + 12345) & 0x7fffffff; RT[i] = (a >> 16) & 255; } })();
   // the two gusts that may be moving now: [start, strength, start, strength]
   var GUSTS = [0, 0, 0, 0];
-  var G0 = 40.5;                      // the live layer's clock starts at 40: the first gust half a second later
+  var G0 = 39.2;                      // the wind's clock starts at 40: the first gust is entering from the left by then
   function gusts(t) {
     var k = Math.floor((t - G0) / WIND.period), j = 0;
     for (var kk = k - 1; kk <= k; kk++) {
@@ -118,10 +124,44 @@
     for (var j = 0; j < 4; j += 2) g += GUSTS[j + 1] * Math.max(0, gustG(tNow - GUSTS[j] - (u + 0.25) / WIND.speed));
     return g;
   }
+  // ---- the pointer's wind, clump by clump (the shader has the same numbers) -----------------------------------
+  // Not a ring that spreads: a short wake along the pointer's path that dies out within a clump or two. The canopy
+  // gives unevenly: whole regions (a few clumps across) are stiff, others loose, and each clump answers late by its
+  // own amount, turns the push its own way and sways back and forth a moment before it settles.
+  var PP = 9;                         // the pointer's push at full strength, CSS pixels
+  function ptrG(a, h) {               // a clump's answer, a seconds after the puff reached it: a push, then a sway
+    if (a <= 0) return 0;
+    return ss(0, 0.12, a) * Math.exp(-1.8 * a) * Math.cos(a * (6 + 4 * h));
+  }
+  function ptrEnv(a) { return a <= 0 ? 0 : ss(0, 0.12, a) * Math.exp(-1.8 * a); }
+  // the pointer's push on the clump with id (cx, cy), centre (px, py) in image pixels; adds into out [x, y, level]
+  function ptrClump(cx, cy, px, py, h, h2, h3, h4, t, out) {
+    var co = (((((Math.floor(cy / 3) + 17) % 64) + 64) % 64) * 64 + ((((Math.floor(cx / 3) + 32) % 64) + 64) % 64)) * 4;
+    var loose = (0.15 + 0.85 * ss(0.25, 0.85, RT[co] / 255)) * (0.35 + 0.9 * h3);
+    if (loose <= 0) return;
+    for (var k = 0; k < PUFFS.length; k++) {
+      var P = PUFFS[k], age = t - P.t;
+      if (age <= 0 || age > 2.6) continue;
+      var ddx = px - P.ix, ddy = py - P.iy, d = Math.sqrt(ddx * ddx + ddy * ddy);
+      var fall = Math.exp(-(d / P.r) * (d / P.r));
+      if (fall < 0.01) continue;
+      var a = age - h4 * 0.3 - (d / P.r) * 0.12;
+      var dx = P.dx, dy = P.dy;
+      if (dx === 0 && dy === 0) { dx = ddx / Math.max(d, 1); dy = ddy / Math.max(d, 1); }
+      var an = (h2 - 0.5) * 1.4, ca = Math.cos(an), sa = Math.sin(an);
+      var m = P.s * loose * fall;
+      var g = ptrG(a, h);
+      out[0] += m * g * (ca * dx - sa * dy);
+      out[1] += m * g * (sa * dx + ca * dy);
+      out[2] += m * ptrEnv(a);
+    }
+  }
+
   // the canopy moves, down through the fringe of its lowest leaves (the painted edge rises and falls across the
   // picture, so the movement fades out only below its lowest point); the hedge and the lawn stand still
   function height(v) { var e = V.edge; return (1 - ss(e[0], e[1], v)) * (0.6 + 0.4 * Math.min(1, Math.max(0, 1 - v / e[0]))); }
   // the wind's push at a point of the painting (image pixels ix, iy; C image pixels a clump), in CSS pixels
+  var PO = [0, 0, 0];
   function windAt(ix, iy, iw, ih, C, t) {
     var bx = Math.floor(ix / C), by = Math.floor(iy / C), sx = 0, sy = 0, sw = 0;
     for (var j = -1; j <= 1; j++) for (var i = -1; i <= 1; i++) {
@@ -139,6 +179,9 @@
       var ac = 0.6 + 0.8 * h3;
       sx += w * (WIND.push * ac * lean + WIND.idle * Math.sin(t * (0.6 + 0.5 * h) + 6.2832 * h3));
       sy += w * (WIND.push * 0.18 * ac * lean + WIND.idle * 0.6 * Math.sin(t * (0.8 + 0.4 * h2) + 6.2832 * h));
+      PO[0] = 0; PO[1] = 0; PO[2] = 0;
+      ptrClump(cx, cy, px, py, h, h2, h3, h4, t, PO);
+      sx += w * PP * PO[0]; sy += w * PP * PO[1];
       sw += w;
     }
     var k = height(iy / ih) / sw;
@@ -159,7 +202,10 @@
   var PUFFS = [], puffAt = 0, lastP = null, stir = 0, breeze = 0;
   function puff(x, y, dx, dy, strength) {
     if (!live) return;
-    PUFFS.push({ x: x, y: y, dx: dx, dy: dy, t: tLive(), s: strength });
+    // where it fell on the painting (image pixels), and how far it reaches there: about 70 CSS px, more for a click
+    var cw = canvas.clientWidth || 1, ch = canvas.clientHeight || 1, sc = Math.max(cw / srcW, ch / srcH);
+    var ix = (x - (cw - srcW * sc) * POS[0]) / sc, iy = (y - (ch - srcH * sc) * POS[1]) / sc;
+    PUFFS.push({ ix: ix, iy: iy, dx: dx, dy: dy, t: tLive(), s: strength, r: (80 + 50 * Math.min(1, strength)) * (dx === 0 && dy === 0 ? 1.8 : 1) / sc });
     if (PUFFS.length > 8) PUFFS.shift();
     stir = Math.min(1.5, stir + strength * 0.5);
   }
@@ -209,21 +255,23 @@
     clearTimeout(controlsTimer);
     controlsTimer = setTimeout(function () {
       if (replay) replay.hidden = false;
-      if (soundBtn && flock && flock.sound.available()) soundBtn.hidden = false;
+      if (soundBtn && sound && sound.available()) soundBtn.hidden = false;
       requestAnimationFrame(function () { if (controls) controls.classList.add("is-shown"); });
     }, 3500);
   }
 
   function watchLapse() {
     if (!root.classList.contains("is-lapse")) return;
-    if (video.currentTime >= TEXT_AT) textIn(); else requestAnimationFrame(watchLapse);
+    if (video.currentTime >= TEXT_AT) textIn();
+    if (video.currentTime >= WIND_AT && !liveFrom) liveFrom = performance.now();   // the wind begins
+    if (!liveFrom || video.currentTime < TEXT_AT) requestAnimationFrame(watchLapse);
   }
 
   function playLapse() {
     clearTimeout(controlsTimer);
     if (controls) controls.classList.remove("is-shown");
     if (replay) replay.hidden = true;
-    live = false;
+    live = false; liveFrom = 0;
     if (flock) { flock.stop(); flock.reset(); }
     root.classList.remove("is-still");
     root.classList.add("is-lapse");
@@ -244,7 +292,7 @@
       map: function (u, v, withSway) {
         var cw = birdCanvas.clientWidth, ch = birdCanvas.clientHeight;
         var iw = still.naturalWidth || 1600, ih = still.naturalHeight || 1000;
-        var s = Math.max(cw / iw, ch / ih);
+        var s = Math.max((cw + 2 * MARGIN) / iw, (ch + 2 * MARGIN) / ih);
         var x = (cw - iw * s) * POS[0] + u * iw * s, y = (ch - ih * s) * POS[1] + v * ih * s;
         if (withSway && live) {
           var o = windAt(u * iw, v * ih, iw, ih, WIND.clump / s, tNow);
@@ -259,7 +307,7 @@
       unmap: function (x, y) {
         var cw = birdCanvas.clientWidth, ch = birdCanvas.clientHeight;
         var iw = still.naturalWidth || 1600, ih = still.naturalHeight || 1000;
-        var s = Math.max(cw / iw, ch / ih);
+        var s = Math.max((cw + 2 * MARGIN) / iw, (ch + 2 * MARGIN) / ih);
         return [(x - (cw - iw * s) * POS[0]) / (iw * s), (y - (ch - ih * s) * POS[1]) / (ih * s)];
       },
       windLevel: windLevel,
@@ -269,30 +317,54 @@
     flock.setBirds(V.birds);
     flock.setPerches(V.perches);
     flock.reset();
-    // birdsong: on unless the visitor turned it off; a browser lets it sound only after the first tap or key
+    if (sound) flock.sound = sound;          // the one sound of the page, there from its first moment
+  }
+
+  // ---- the sound ----------------------------------------------------------------------------------------------
+  // Made as the page loads: the wind's recordings start to download at once, and the sound starts as soon as the
+  // browser lets it (at once on a site the browser already trusts with sound; otherwise at the first tap, click
+  // or key, even during the timelapse). The calm wind comes first; the gusts and the birds join when the painting
+  // comes alive. On unless the visitor turned it off.
+  var sound = null;
+  function makeSound() {
+    if (!window.ForestBirds || !window.ForestBirds.Sound) return;
+    sound = new window.ForestBirds.Sound();
     var stored = null;
     try { stored = localStorage.getItem("forest-birdsong"); } catch (e) {}
-    flock.sound.on = stored !== "off";
-    if (soundBtn) soundBtn.setAttribute("aria-pressed", flock.sound.on ? "true" : "false");
-    var unlock = function () { if (flock) flock.sound.unlock(); };
+    sound.on = stored !== "off";
+    if (soundBtn) soundBtn.setAttribute("aria-pressed", sound.on ? "true" : "false");
+    if (sound.on) { sound.preload(); sound.unlock(); }       // try at once; a browser may hold it until a gesture
+    var unlock = function () { sound.unlock(); };
     ["pointerdown", "keydown", "touchend"].forEach(function (ev) { document.addEventListener(ev, unlock, { passive: true }); });
     if (soundBtn) soundBtn.addEventListener("click", function () {
-      flock.sound.on = !flock.sound.on;
-      soundBtn.setAttribute("aria-pressed", flock.sound.on ? "true" : "false");
-      try { localStorage.setItem("forest-birdsong", flock.sound.on ? "on" : "off"); } catch (e) {}
-      if (flock.sound.on) flock.sound.unlock(); else flock.sound.hush();
+      sound.on = !sound.on;
+      soundBtn.setAttribute("aria-pressed", sound.on ? "true" : "false");
+      try { localStorage.setItem("forest-birdsong", sound.on ? "on" : "off"); } catch (e) {}
+      if (sound.on) { sound.preload(); sound.unlock(); } else sound.hush();
     });
+    // the wind's strength for the sound, ten times a second: the gusts and the pointer once the painting is alive,
+    // still air before
+    setInterval(function () { if (!document.hidden) sound.wind(windLevel(), windPanNow()); }, 100);
+  }
+  // where across the picture the wind is now (-1 left .. 1 right; 0 when it is still)
+  function windPanNow() {
+    if (!live) return 0;
+    var sum = 0, at = 0;
+    for (var i = 0; i < 5; i++) { var u = 0.1 + 0.2 * i, g = gustAt(u) * amp; sum += g; at += g * u; }
+    return sum > 0.02 ? (at / sum) * 2 - 1 : 0;
   }
 
   // ---- the WebGL layer -----------------------------------------------------------------------------------------
   var VS = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
   var FS = [
     "precision highp float;",
+    "const float DARKEN = 0.1;",
     "uniform sampler2D tex; uniform vec2 res; uniform vec2 img; uniform float t; uniform float amp;",
     "uniform float canopy; uniform vec2 edge; uniform vec2 pos; uniform float dab; uniform float pxr;",
     "uniform sampler2D rnd; uniform vec4 gst; uniform float clump; uniform float push; uniform float idle; uniform float speed;",
-    "uniform float lt; uniform float tone;",
-    "uniform vec4 pf[8]; uniform vec2 pa[8]; uniform sampler2D tmk;",
+    "uniform float lt; uniform float tone; uniform float marg;",
+    "uniform vec4 pf[8]; uniform vec4 pa[8]; uniform float pp; uniform sampler2D tmk;",
+    "vec2 WP; float PG;",
     "float h21(vec2 q){ q = fract(q * vec2(123.34, 456.21)); q += dot(q, q + 45.32); return fract(q.x * q.y); }",
     "float vn(vec2 q){ vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);",
     "  return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }",
@@ -301,8 +373,10 @@
     "float gustG(float s){ if (s <= 0.0) return 0.0; float g = ss(0.0, 0.5, s) * (1.0 - ss(1.4, 3.0, s));",
     "  if (s > 2.2) g -= 0.3 * exp(-(s - 2.2) * 1.3) * sin((s - 2.2) * 4.5); return g; }",
     "float height(float v){ return (1.0 - ss(edge.x, edge.y, v)) * (0.6 + 0.4 * clamp(1.0 - v / edge.x, 0.0, 1.0)); }",
+    // the pointer's wind, as ptrClump() in forest.js
+    "float ptrE(float a){ return a <= 0.0 ? 0.0 : ss(0.0, 0.12, a) * exp(-1.8 * a); }",
     "vec2 wind(vec2 ip, float C){",
-    "  vec2 b = floor(ip / C); vec2 sum = vec2(0.0); float sw = 0.0;",
+    "  vec2 b = floor(ip / C); vec2 sum = vec2(0.0); float sw = 0.0; vec2 sp = vec2(0.0); float sg = 0.0;",
     "  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {",
     "    vec2 cid = b + vec2(float(i), float(j));",
     "    vec4 r = texture2D(rnd, (mod(cid, 64.0) + 0.5) / 64.0);",
@@ -314,30 +388,35 @@
     "    float ac = 0.6 + 0.8 * r.z;",
     "    sum += w * vec2(push * ac * lean + idle * sin(t * (0.6 + 0.5 * r.x) + 6.2832 * r.z),",
     "                    push * 0.18 * ac * lean + idle * 0.6 * sin(t * (0.8 + 0.4 * r.y) + 6.2832 * r.x));",
+    "    float loose = (0.15 + 0.85 * ss(0.25, 0.85, texture2D(rnd, (mod(floor(cid / 3.0) + vec2(32.0, 17.0), 64.0) + 0.5) / 64.0).x)) * (0.35 + 0.9 * r.z);",
+    "    if (loose > 0.0) for (int k = 0; k < 8; k++) {",
+    "      vec4 q = pf[k]; vec4 a4 = pa[k]; float age = t - a4.x;",
+    "      if (a4.y > 0.0 && age > 0.0 && age < 2.6) {",
+    "        vec2 dd2 = pc - q.xy; float d = length(dd2);",
+    "        float fall = exp(-(d / a4.z) * (d / a4.z));",
+    "        float a = age - r.w * 0.3 - (d / a4.z) * 0.12;",
+    "        vec2 dir = (q.z == 0.0 && q.w == 0.0) ? dd2 / max(d, 1.0) : q.zw;",
+    "        float an = (r.y - 0.5) * 1.4; float ca = cos(an), sa = sin(an);",
+    "        float m = a4.y * loose * fall; float e = ptrE(a);",
+    "        sp += w * m * e * cos(a * (6.0 + 4.0 * r.x)) * vec2(ca * dir.x - sa * dir.y, sa * dir.x + ca * dir.y);",
+    "        sg += w * m * e;",
+    "      }",
+    "    }",
     "    sw += w;",
     "  }",
-    "  return sum / sw * height(ip.y / img.y);",
+    "  float hh = height(ip.y / img.y);",
+    "  WP = sp / sw * hh * pp; PG = sg / sw * hh;",
+    "  return sum / sw * hh;",
     "}",
     "void main(){",
-    "  float s = max(res.x / img.x, res.y / img.y);",
+    "  float s = max((res.x + 2.0 * marg) / img.x, (res.y + 2.0 * marg) / img.y);",   // a margin of paint past each edge
     "  vec2 frag = vec2(gl_FragCoord.x, res.y - gl_FragCoord.y);",
     "  vec2 ip = (frag - (res - img * s) * pos) / s;",               // this pixel in image pixels, as object-position crops
     "  vec2 uv0 = ip / img;",
     "  float leafy = 1.0 - ss(edge.x, edge.y, uv0.y);",
     "  vec2 W = wind(ip, clump / s) * amp;",                          // the wind here (device px): smooth, clump by clump
-    // the visitor's pointer: each puff of its wind spreads out as a ring through the leaves, pushing the dabs along
-    // the way it moved (and outward), fading as it goes
-    "  float pg = 0.0;",
-    "  for (int k = 0; k < 8; k++) {",
-    "    vec4 q = pf[k]; vec2 a = pa[k]; float age = t - a.x;",
-    "    if (a.y > 0.0 && age > 0.0 && age < 2.4) {",
-    "      vec2 d = frag - q.xy; float r = length(d);",
-    "      float ring = exp(-pow((r - age * 320.0 * pxr) / (48.0 * pxr), 2.0));",
-    "      float env = exp(-age * 1.5) * a.y;",
-    "      W += (q.zw * 0.8 + d / max(r, 1.0) * 0.45) * ring * env * 8.0 * pxr * amp;",
-    "      pg += ring * env * amp;",
-    "    }",
-    "  }",
+    // the visitor's pointer: its wake, clump by clump (wind() above); only some dabs answer it, each by its own amount
+    "  vec2 Wp = WP * amp; float pg = PG * amp;",
     "  float gp0 = (gst.y * max(0.0, gustG(t - gst.x - (uv0.x + 0.25) / speed)) + gst.w * max(0.0, gustG(t - gst.z - (uv0.x + 0.25) / speed))) * amp;",
     "  float gp = gp0 + pg;",
     // The wind doesn't stretch the paint: the canopy moves as separate dabs. Each dab-shaped piece (about the size of
@@ -357,7 +436,9 @@
     "    if (e < 1.0 && h4 > bz) {",
     "      bz = h4;",
     "      vec2 jig = vec2(sin(t * (5.0 + 4.0 * h1) + 6.2832 * h3), cos(t * (4.0 + 5.0 * h2) + 6.2832 * h1));",
-    "      off = W * (0.45 + 1.1 * h2) + jig * gp * 1.6 * pxr;",
+    "      float h5 = h21(id + 71.9);",
+    "      float give = ss(h5 - 0.2, h5 + 0.2, pg * 1.6);",           // a light touch moves a few dabs, a strong one most
+    "      off = W * (0.45 + 1.1 * h2) + Wp * (0.3 + 1.4 * h1) * give + jig * (gp - pg + pg * give) * 1.6 * pxr;",
     "      fh = h1; fh2 = h2; fh3 = h3;",
     "    }",
     "  }",
@@ -366,6 +447,7 @@
     "  float tm = max(texture2D(tmk, uv0).r, texture2D(tmk, (ip - off / s) / img).r);",
     "  float still = smoothstep(0.35, 0.65, tm);",
     "  off *= 1.0 - still;",
+    "  off /= max(1.0, length(off) / marg);",                       // never farther than the margin: no smeared edges
     "  ip -= off / s;",
     "  vec2 uv = ip / img;",
     "  vec3 col = texture2D(tex, ip / img).rgb;",
@@ -388,6 +470,7 @@
     "    float k = pow(Lp / max(Lc, 0.0001), 0.4545);",
     "    col *= mix(1.0, k, tone);",
     "  }",
+    "  col *= 1.0 - DARKEN * tone;",                                   // and the whole painting a little darker
     "  gl_FragColor = vec4(col, 1.0);",
     "}"
   ].join("\n");
@@ -456,7 +539,8 @@
   function startLive() {
     makeFlock();
     if (!initGL()) { if (flock) flock.start(); return false; }
-    mode = "live"; live = true; amp = 0; liveFrom = performance.now(); last = 0;
+    mode = "live"; live = true; last = 0;
+    if (!liveFrom) liveFrom = performance.now();               // (the wind's clock runs on from the timelapse)
     loop();
     if (flock) flock.start();
     return true;
@@ -477,9 +561,9 @@
     var fed = feed();
     if (!fed) return false;
     size();
-    if (mode === "live") {
+    if (liveFrom && (mode === "live" || mode === "lapse")) {
       var t = (now - liveFrom) / 1000;
-      amp = Math.min(1, t / 1.5);                // the life comes in as the painting is done
+      amp = Math.min(1, t / 1.2);                // the wind comes in over a second, while the dots are still landing
       amp = amp * amp * (3 - 2 * amp);
       var tq = Math.floor((t + 40.0) * STEPS) / STEPS;   // the leaves move in steps, as if repainted frame by frame
       if (tq === tNow && fed !== 2 && amp >= 1) return true;
@@ -505,6 +589,7 @@
     gl.uniform1f(U("idle"), WIND.idle * dpr);
     gl.uniform1f(U("speed"), WIND.speed);
     gl.uniform1f(U("lt"), LT);
+    gl.uniform1f(U("marg"), MARGIN * dpr);
     if (tmFor !== V) {
       tmFor = V;
       gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, tmtex);
@@ -512,14 +597,15 @@
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
     }
     gl.uniform1i(U("tmk"), 3);
-    var pf = new Float32Array(32), pa = new Float32Array(16);
+    var pf = new Float32Array(32), pa = new Float32Array(32);
     for (var i = 0; i < PUFFS.length; i++) {
       var P = PUFFS[i];
-      pf[i * 4] = P.x * dpr; pf[i * 4 + 1] = P.y * dpr; pf[i * 4 + 2] = P.dx; pf[i * 4 + 3] = P.dy;
-      pa[i * 2] = P.t; pa[i * 2 + 1] = P.s;
+      pf[i * 4] = P.ix; pf[i * 4 + 1] = P.iy; pf[i * 4 + 2] = P.dx; pf[i * 4 + 3] = P.dy;
+      pa[i * 4] = P.t; pa[i * 4 + 1] = P.s; pa[i * 4 + 2] = P.r;
     }
     gl.uniform4fv(U("pf"), pf);
-    gl.uniform2fv(U("pa"), pa);
+    gl.uniform4fv(U("pa"), pa);
+    gl.uniform1f(U("pp"), PP * dpr);
     gl.uniform1f(U("tone"), toneAmt());
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     if (!root.classList.contains("gl-on")) root.classList.add("gl-on");   // shown only once it has drawn
@@ -563,10 +649,11 @@
   if (tall.addEventListener) tall.addEventListener("change", switchVariant);
 
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) { cancelAnimationFrame(raf); if (flock) { flock.pause(); flock.sound.hush(); } }
+    if (document.hidden) { cancelAnimationFrame(raf); if (flock) flock.pause(); if (sound) sound.hush(); }
     else {
       if (mode === "live" || mode === "lapse") loop();
-      if (live && flock) { flock.start(); flock.sound.wake(); }
+      if (live && flock) flock.start();
+      if (sound) sound.wake();
     }
   });
 
@@ -576,6 +663,7 @@
     textIn(); toneFrom = performance.now() - 1000;
     if (initGL()) { mode = "static"; drawStatic(); }
   } else {
+    makeSound();
     video.addEventListener("ended", showStill);
     video.addEventListener("error", showStill);
     video.src = V.lapse;
@@ -586,7 +674,8 @@
   reduce.addEventListener && reduce.addEventListener("change", function (e) {
     if (e.matches) {
       video.pause(); live = false; cancelAnimationFrame(raf);
-      if (flock) { flock.stop(); flock.sound.hush(); }
+      if (flock) flock.stop();
+      if (sound) sound.hush();
       root.classList.remove("is-lapse"); root.classList.add("is-still"); if (replay) replay.hidden = true;
       textIn();
       if (initGL()) { mode = "static"; drawStatic(); }
